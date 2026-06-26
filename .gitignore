@@ -1,0 +1,12 @@
+# Compiled binary (root-level only)
+/server
+
+# Go build artifacts
+*.exe
+*.out
+
+# Generated PDFs
+*.pdf
+
+# Environment
+.env
