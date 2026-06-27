@@ -11,6 +11,7 @@ const (
 	CrewUnavailable     EventType = "crew.unavailable"
 	EquipmentAvailable  EventType = "equipment.available"
 	EquipmentBroken     EventType = "equipment.broken"
+	TaskCreated         EventType = "task.created"
 	TaskCompleted       EventType = "task.completed"
 	AssignmentCreated   EventType = "assignment.created"
 	AssignmentCompleted EventType = "assignment.completed"
