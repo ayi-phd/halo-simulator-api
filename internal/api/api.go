@@ -5,14 +5,16 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"halo-simulator/internal/ws"
 )
 
-// Handler holds dependencies that will be injected in later steps
-// (stores, event bus, etc). Empty for now.
-type Handler struct{}
+// Handler holds dependencies injected at startup.
+type Handler struct {
+	hub *ws.Hub
+}
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(hub *ws.Hub) *Handler {
+	return &Handler{hub: hub}
 }
 
 // Routes registers all API endpoints on a new chi router and returns it.
@@ -21,6 +23,7 @@ func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
 
 	r.Get("/health", h.health)
+	r.Get("/ws", h.hub.ServeWS)
 
 	r.Post("/flights", h.createFlight)
 	r.Post("/crew", h.createCrew)
