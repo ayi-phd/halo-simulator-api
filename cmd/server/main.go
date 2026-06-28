@@ -13,6 +13,7 @@ import (
 	"halo-simulator/internal/metrics"
 	"halo-simulator/internal/planner"
 	"halo-simulator/internal/scheduler"
+	"halo-simulator/internal/simulator"
 	"halo-simulator/internal/store"
 	"halo-simulator/internal/ws"
 )
@@ -37,12 +38,15 @@ func main() {
 	sched      := scheduler.NewScheduler(tasks, crews, equipment, assignments, bus)
 	disp       := dispatcher.NewDispatcher(tasks, crews, equipment, assignments, bus)
 
+	sim := simulator.NewSimulator(flights, crews, equipment, bus)
+
 	// Start background goroutines
 	go bus.Run(ctx)
 	go hub.Run(ctx)
 	go plan.Run(ctx)
 	go sched.Run(ctx)
 	go disp.Run(ctx)
+	go sim.Run(ctx)
 
 	// HTTP
 	r := chi.NewRouter()
