@@ -12,17 +12,17 @@ const (
 )
 
 type Airline struct {
-	ID   string
-	Name string
-	IATA string
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	IATA string `json:"iata"`
 }
 
 type Flight struct {
-	ID                 string
-	FlightNumber       string
-	AirlineID          string
-	Gate               string
-	Status             FlightStatus
-	ScheduledDeparture time.Time
-	ActualArrival      time.Time
+	ID                 string       `json:"id"`
+	FlightNumber       string       `json:"flight_number"`
+	AirlineID          string       `json:"airline_id"`
+	Gate               string       `json:"gate"`
+	Status             FlightStatus `json:"status"`
+	ScheduledDeparture time.Time    `json:"scheduled_departure"`
+	ActualArrival      time.Time    `json:"actual_arrival"`
 }

@@ -19,9 +19,9 @@ const (
 )
 
 type Crew struct {
-	ID       string
-	Name     string
-	Role     CrewRole
-	Status   CrewStatus
-	Location string
+	ID       string     `json:"id"`
+	Name     string     `json:"name"`
+	Role     CrewRole   `json:"role"`
+	Status   CrewStatus `json:"status"`
+	Location string     `json:"location"`
 }

@@ -18,8 +18,8 @@ const (
 )
 
 type GroundEquipment struct {
-	ID       string
-	Type     EquipmentType
-	Status   EquipmentStatus
-	Location string
+	ID       string          `json:"id"`
+	Type     EquipmentType   `json:"type"`
+	Status   EquipmentStatus `json:"status"`
+	Location string          `json:"location"`
 }

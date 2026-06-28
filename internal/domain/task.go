@@ -22,9 +22,9 @@ const (
 )
 
 type Task struct {
-	ID        string
-	FlightID  string
-	Type      TaskType
-	Status    TaskStatus
-	CreatedAt time.Time
+	ID        string     `json:"id"`
+	FlightID  string     `json:"flight_id"`
+	Type      TaskType   `json:"type"`
+	Status    TaskStatus `json:"status"`
+	CreatedAt time.Time  `json:"created_at"`
 }
