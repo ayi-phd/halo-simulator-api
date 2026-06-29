@@ -1,6 +1,6 @@
 # Compiled binaries (root-level only)
 /server
-/simulator-api
+/simulator-http
 
 # Go build artifacts
 *.exe

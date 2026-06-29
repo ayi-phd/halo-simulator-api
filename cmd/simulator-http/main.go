@@ -54,7 +54,7 @@ func main() {
 	defer flightTicker.Stop()
 	defer eventTicker.Stop()
 
-	log.Printf("simulator-api: running — flights every 10s, events every 25s")
+	log.Printf("simulator-http: running — flights every 10s, events every 25s")
 
 	for {
 		select {
@@ -65,7 +65,7 @@ func main() {
 		case <-eventTicker.C:
 			randomOperationalEvent(ctx, client, equipmentIDs, flightIDs)
 		case <-ctx.Done():
-			log.Println("simulator-api: stopped")
+			log.Println("simulator-http: stopped")
 			return
 		}
 	}
@@ -75,10 +75,10 @@ func main() {
 func waitForServer(ctx context.Context, client *simclient.Client, serverURL string) {
 	for {
 		if err := client.HealthCheck(); err == nil {
-			log.Printf("simulator-api: server ready at %s", serverURL)
+			log.Printf("simulator-http: server ready at %s", serverURL)
 			return
 		}
-		log.Printf("simulator-api: waiting for server at %s...", serverURL)
+		log.Printf("simulator-http: waiting for server at %s...", serverURL)
 		select {
 		case <-time.After(2 * time.Second):
 		case <-ctx.Done():
@@ -92,7 +92,7 @@ func waitForServer(ctx context.Context, client *simclient.Client, serverURL stri
 func seed(client *simclient.Client) []string {
 	for _, cs := range crewSeeds {
 		if _, err := client.CreateCrew(cs.name, cs.role); err != nil {
-			log.Printf("simulator-api: seed crew error: %v", err)
+			log.Printf("simulator-http: seed crew error: %v", err)
 		}
 	}
 
@@ -100,13 +100,13 @@ func seed(client *simclient.Client) []string {
 	for _, t := range equipmentSeeds {
 		id, err := client.CreateEquipment(t)
 		if err != nil {
-			log.Printf("simulator-api: seed equipment error: %v", err)
+			log.Printf("simulator-http: seed equipment error: %v", err)
 			continue
 		}
 		equipmentIDs = append(equipmentIDs, id)
 	}
 
-	log.Printf("simulator-api: seeded %d crew, %d equipment", len(crewSeeds), len(equipmentIDs))
+	log.Printf("simulator-http: seeded %d crew, %d equipment", len(crewSeeds), len(equipmentIDs))
 	return equipmentIDs
 }
 
@@ -117,10 +117,10 @@ func arriveRandomFlight(client *simclient.Client) string {
 
 	id, err := client.CreateFlight(number, gate)
 	if err != nil {
-		log.Printf("simulator-api: create flight error: %v", err)
+		log.Printf("simulator-http: create flight error: %v", err)
 		return ""
 	}
-	log.Printf("simulator-api: flight %s arrived at gate %s", number, gate)
+	log.Printf("simulator-http: flight %s arrived at gate %s", number, gate)
 	return id
 }
 
@@ -138,19 +138,19 @@ func breakRandomEquipment(ctx context.Context, client *simclient.Client, ids []s
 	}
 	id := ids[rand.Intn(len(ids))]
 	if err := client.BreakEquipment(id); err != nil {
-		log.Printf("simulator-api: break equipment error: %v", err)
+		log.Printf("simulator-http: break equipment error: %v", err)
 		return
 	}
-	log.Printf("simulator-api: equipment %s broken — repair in 30s", id)
+	log.Printf("simulator-http: equipment %s broken — repair in 30s", id)
 
 	go func() {
 		select {
 		case <-time.After(30 * time.Second):
 			if err := client.RepairEquipment(id); err != nil {
-				log.Printf("simulator-api: repair equipment error: %v", err)
+				log.Printf("simulator-http: repair equipment error: %v", err)
 				return
 			}
-			log.Printf("simulator-api: equipment %s repaired", id)
+			log.Printf("simulator-http: equipment %s repaired", id)
 		case <-ctx.Done():
 		}
 	}()
@@ -158,13 +158,13 @@ func breakRandomEquipment(ctx context.Context, client *simclient.Client, ids []s
 
 func delayRandomFlight(client *simclient.Client, ids []string) {
 	if len(ids) == 0 {
-		log.Println("simulator-api: no flights yet to delay")
+		log.Println("simulator-http: no flights yet to delay")
 		return
 	}
 	id := ids[rand.Intn(len(ids))]
 	if err := client.DelayFlight(id); err != nil {
-		log.Printf("simulator-api: delay flight error: %v", err)
+		log.Printf("simulator-http: delay flight error: %v", err)
 		return
 	}
-	log.Printf("simulator-api: flight %s delayed", id)
+	log.Printf("simulator-http: flight %s delayed", id)
 }
