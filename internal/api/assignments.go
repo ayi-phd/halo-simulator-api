@@ -6,6 +6,14 @@ import (
 	"halo-simulator/internal/domain"
 )
 
+func (h *Handler) listFlights(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.flights.AllFlights())
+}
+
+func (h *Handler) listEquipment(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.equipment.All())
+}
+
 func (h *Handler) listAssignments(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, h.assignments.All())
 }

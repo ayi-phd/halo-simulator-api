@@ -30,6 +30,8 @@ func (h *Handler) publishEvent(w http.ResponseWriter, r *http.Request) {
 		h.handleFlightDelayed(w, req.FlightID)
 	case events.EquipmentBroken:
 		h.handleEquipmentBroken(w, req.EquipmentID)
+	case events.EquipmentAvailable:
+		h.handleEquipmentRepaired(w, req.EquipmentID)
 	case events.CrewUnavailable:
 		h.handleCrewUnavailable(w, req.CrewID)
 	default:
@@ -69,6 +71,18 @@ func (h *Handler) handleEquipmentBroken(w http.ResponseWriter, equipmentID strin
 	equip.Status = domain.EquipmentStatusBroken
 	h.equipment.Save(equip)
 	h.bus.Publish(events.Event{Type: events.EquipmentBroken, Payload: equip})
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (h *Handler) handleEquipmentRepaired(w http.ResponseWriter, equipmentID string) {
+	equip, ok := h.equipment.Get(equipmentID)
+	if !ok {
+		http.Error(w, "equipment not found", http.StatusNotFound)
+		return
+	}
+	equip.Status = domain.EquipmentStatusAvailable
+	h.equipment.Save(equip)
+	h.bus.Publish(events.Event{Type: events.EquipmentAvailable, Payload: equip})
 	w.WriteHeader(http.StatusAccepted)
 }
 
