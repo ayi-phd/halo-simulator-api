@@ -45,6 +45,19 @@ func (s *TaskStore) All() []domain.Task {
 	return result
 }
 
+// Pending returns all tasks with status Pending.
+func (s *TaskStore) Pending() []domain.Task {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var result []domain.Task
+	for _, t := range s.tasks {
+		if t.Status == domain.TaskStatusPending {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
 // ByFlight returns all tasks for a given flight ID.
 func (s *TaskStore) ByFlight(flightID string) []domain.Task {
 	s.mu.RLock()
