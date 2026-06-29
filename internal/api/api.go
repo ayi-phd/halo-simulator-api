@@ -51,6 +51,7 @@ func NewHandler(cfg Config) *Handler {
 func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
 
+	r.Get("/", h.serveDashboard)
 	r.Get("/health", h.health)
 	r.Get("/ws", h.hub.ServeWS)
 
