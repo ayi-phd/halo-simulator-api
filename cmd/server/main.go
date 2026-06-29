@@ -32,13 +32,12 @@ func main() {
 	bus := events.NewBus()
 
 	// Components
-	hub        := ws.NewHub(bus)
-	collector  := metrics.NewCollector(flights, tasks, crews, assignments)
-	plan       := planner.NewPlanner(tasks, bus)
-	sched      := scheduler.NewScheduler(tasks, crews, equipment, assignments, bus)
-	disp       := dispatcher.NewDispatcher(tasks, crews, equipment, assignments, bus)
-
-	sim := simulator.NewSimulator(flights, crews, equipment, bus)
+	hub       := ws.NewHub(bus)
+	collector := metrics.NewCollector(flights, tasks, crews, assignments)
+	plan      := planner.NewPlanner(tasks, bus)
+	sched     := scheduler.NewScheduler(tasks, crews, equipment, assignments, bus)
+	disp      := dispatcher.NewDispatcher(tasks, crews, equipment, assignments, bus)
+	sim       := simulator.NewSimulator(flights, crews, equipment, bus)
 
 	// Start background goroutines
 	go bus.Run(ctx)
@@ -52,7 +51,16 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Mount("/", api.NewHandler(hub, collector).Routes())
+	r.Mount("/", api.NewHandler(api.Config{
+		Hub:         hub,
+		Metrics:     collector,
+		Flights:     flights,
+		Tasks:       tasks,
+		Crews:       crews,
+		Equipment:   equipment,
+		Assignments: assignments,
+		Bus:         bus,
+	}).Routes())
 
 	log.Println("HALO Simulator starting on :8080")
 	if err := http.ListenAndServe(":8080", r); err != nil {
