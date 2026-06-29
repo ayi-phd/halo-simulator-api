@@ -16,19 +16,19 @@ import (
 type Planner struct {
 	tasks *store.TaskStore
 	bus   *events.Bus
+	sub   <-chan events.Event
 }
 
 func NewPlanner(tasks *store.TaskStore, bus *events.Bus) *Planner {
-	return &Planner{tasks: tasks, bus: bus}
+	return &Planner{tasks: tasks, bus: bus, sub: bus.Subscribe()}
 }
 
 // Run starts the Planner's event loop. Call in its own goroutine.
 // Exits cleanly when ctx is cancelled.
 func (p *Planner) Run(ctx context.Context) {
-	sub := p.bus.Subscribe()
 	for {
 		select {
-		case e := <-sub:
+		case e := <-p.sub:
 			p.handle(e)
 		case <-ctx.Done():
 			return
