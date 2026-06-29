@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HALO Simulator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d1117;
+      color: #c9d1d9;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 12px 20px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    h1 { font-size: 15px; color: #58a6ff; letter-spacing: 2px; text-transform: uppercase; }
+
+    .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8b949e; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #f85149; flex-shrink: 0; }
+    .dot.connected { background: #3fb950; }
+
+    .metrics {
+      display: flex;
+      gap: 32px;
+      padding: 10px 20px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+    .metric { display: flex; flex-direction: column; gap: 2px; }
+    .metric-value { font-size: 22px; color: #58a6ff; font-weight: bold; }
+    .metric-label { color: #8b949e; text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
+
+    .stream {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .event {
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border-left: 3px solid transparent;
+      font-size: 12px;
+    }
+    .event:hover { background: #161b22; }
+
+    .time  { color: #8b949e; font-size: 11px; min-width: 86px; flex-shrink: 0; }
+    .badge {
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-width: 148px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .payload { color: #8b949e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .type-flight     { border-color: #58a6ff; }
+    .type-flight     .badge { background: #1f3a5f; color: #58a6ff; }
+    .type-task       { border-color: #e3b341; }
+    .type-task       .badge { background: #3d2d00; color: #e3b341; }
+    .type-crew       { border-color: #3fb950; }
+    .type-crew       .badge { background: #1a3a1e; color: #3fb950; }
+    .type-equipment  { border-color: #bc8cff; }
+    .type-equipment  .badge { background: #2d1f4e; color: #bc8cff; }
+    .type-assignment { border-color: #39c5cf; }
+    .type-assignment .badge { background: #1a3535; color: #39c5cf; }
+
+    .empty { color: #8b949e; font-size: 13px; padding: 40px; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>&#9992; HALO Simulator</h1>
+    <div class="status">
+      <div class="dot" id="dot"></div>
+      <span id="status-text">Connecting…</span>
+    </div>
+  </header>
+
+  <div class="metrics">
+    <div class="metric"><span class="metric-value" id="m-flights">—</span><span class="metric-label">Flights</span></div>
+    <div class="metric"><span class="metric-value" id="m-tasks">—</span><span class="metric-label">Tasks</span></div>
+    <div class="metric"><span class="metric-value" id="m-pending">—</span><span class="metric-label">Pending</span></div>
+    <div class="metric"><span class="metric-value" id="m-completed">—</span><span class="metric-label">Completed</span></div>
+    <div class="metric"><span class="metric-value" id="m-crew-busy">—</span><span class="metric-label">Crew Busy</span></div>
+    <div class="metric"><span class="metric-value" id="m-equip-busy">—</span><span class="metric-label">Equip Busy</span></div>
+    <div class="metric"><span class="metric-value" id="m-dispatch">—</span><span class="metric-label">Avg Dispatch</span></div>
+  </div>
+
+  <div class="stream" id="stream">
+    <div class="empty" id="empty">Waiting for events…</div>
+  </div>
+
+  <script>
+    const MAX_EVENTS = 200;
+    const host    = window.location.host || 'localhost:8080';
+    const apiBase = `http://${host}`;
+    const stream  = document.getElementById('stream');
+
+    // --- WebSocket ---
+    function connect() {
+      const ws = new WebSocket(`ws://${host}/ws`);
+
+      ws.onopen = () => {
+        document.getElementById('dot').className = 'dot connected';
+        document.getElementById('status-text').textContent = 'Connected';
+      };
+
+      ws.onclose = () => {
+        document.getElementById('dot').className = 'dot';
+        document.getElementById('status-text').textContent = 'Disconnected — retrying…';
+        setTimeout(connect, 2000);
+      };
+
+      ws.onerror = () => ws.close();
+
+      ws.onmessage = (e) => appendEvent(JSON.parse(e.data));
+    }
+
+    // --- Event stream ---
+    function appendEvent(event) {
+      document.getElementById('empty')?.remove();
+
+      const prefix = event.type.split('.')[0];
+      const row    = document.createElement('div');
+      row.className = `event type-${prefix}`;
+
+      const t = new Date();
+      const ts = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}.${String(t.getMilliseconds()).padStart(3,'0')}`;
+
+      row.innerHTML = `
+        <span class="time">${ts}</span>
+        <span class="badge">${event.type}</span>
+        <span class="payload">${summarise(event)}</span>
+      `;
+      stream.appendChild(row);
+
+      const rows = stream.querySelectorAll('.event');
+      if (rows.length > MAX_EVENTS) rows[0].remove();
+
+      const nearBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight < 80;
+      if (nearBottom) stream.scrollTop = stream.scrollHeight;
+    }
+
+    function summarise(event) {
+      const p = event.payload;
+      if (!p) return '';
+      switch (event.type) {
+        case 'flight.arrived':
+        case 'flight.delayed':
+          return `${p.flight_number || ''} — gate ${p.gate || ''}`;
+        case 'task.created':
+        case 'task.completed':
+          return `type=${p.type || ''}`;
+        case 'crew.available':
+        case 'crew.unavailable':
+          return `${p.name || ''} (${p.role || ''})`;
+        case 'equipment.available':
+        case 'equipment.broken':
+          return `${p.type || ''} @ ${p.location || ''}`;
+        case 'assignment.created':
+        case 'assignment.completed':
+          return `crew=${(p.crew_id||'').slice(0,8)}…  task=${(p.task_id||'').slice(0,8)}…`;
+        default:
+          return JSON.stringify(p).slice(0, 80);
+      }
+    }
+
+    // --- Metrics polling ---
+    async function refreshMetrics() {
+      try {
+        const res = await fetch(`${apiBase}/metrics`);
+        if (!res.ok) return;
+        const m = await res.json();
+        document.getElementById('m-flights').textContent    = m.total_flights    ?? '—';
+        document.getElementById('m-tasks').textContent      = m.total_tasks      ?? '—';
+        document.getElementById('m-pending').textContent    = m.pending_tasks    ?? '—';
+        document.getElementById('m-completed').textContent  = m.completed_tasks  ?? '—';
+        document.getElementById('m-crew-busy').textContent  = m.busy_crew        ?? '—';
+        document.getElementById('m-equip-busy').textContent = m.busy_equipment   ?? '—';
+        const d = m.avg_dispatch_seconds;
+        document.getElementById('m-dispatch').textContent   = d != null ? `${d.toFixed(1)}s` : '—';
+      } catch (_) { /* server not ready yet */ }
+    }
+
+    connect();
+    refreshMetrics();
+    setInterval(refreshMetrics, 5000);
+  </script>
+</body>
+</html>
