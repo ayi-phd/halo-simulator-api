@@ -4,6 +4,10 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,7 +23,10 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	// ctx is cancelled when SIGINT (Ctrl+C) or SIGTERM is received.
+	// All goroutines block on ctx.Done() and exit cleanly on cancellation.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	// Stores
 	flights     := store.NewFlightStore()
@@ -39,7 +46,7 @@ func main() {
 	disp      := dispatcher.NewDispatcher(tasks, crews, equipment, assignments, bus)
 	sim       := simulator.NewSimulator(flights, crews, equipment, bus)
 
-	// Start background goroutines
+	// Start background goroutines — all exit when ctx is cancelled.
 	go bus.Run(ctx)
 	go hub.Run(ctx)
 	go plan.Run(ctx)
@@ -47,7 +54,7 @@ func main() {
 	go disp.Run(ctx)
 	go sim.Run(ctx)
 
-	// HTTP
+	// HTTP server — runs in its own goroutine so main can wait on ctx.
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -62,8 +69,25 @@ func main() {
 		Bus:         bus,
 	}).Routes())
 
-	log.Println("HALO Simulator starting on :8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatal(err)
+	srv := &http.Server{Addr: ":8080", Handler: r}
+
+	go func() {
+		log.Println("HALO Simulator starting on :8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	// Block until a signal arrives.
+	<-ctx.Done()
+	log.Println("shutdown signal received — draining...")
+
+	// Give in-flight HTTP requests up to 5 seconds to complete.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("server shutdown error: %v", err)
 	}
+
+	log.Println("HALO Simulator stopped")
 }

@@ -28,6 +28,7 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	bus        *events.Bus
+	sub        <-chan events.Event
 }
 
 func NewHub(bus *events.Bus) *Hub {
@@ -36,12 +37,12 @@ func NewHub(bus *events.Bus) *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		bus:        bus,
+		sub:        bus.Subscribe(),
 	}
 }
 
 // Run starts the hub's dispatch loop. Call in its own goroutine.
 func (h *Hub) Run(ctx context.Context) {
-	sub := h.bus.Subscribe()
 	for {
 		select {
 		case c := <-h.register:
@@ -55,7 +56,7 @@ func (h *Hub) Run(ctx context.Context) {
 				log.Printf("ws: client disconnected (%d total)", len(h.clients))
 			}
 
-		case e := <-sub:
+		case e := <-h.sub:
 			data, err := json.Marshal(message{Type: e.Type, Payload: e.Payload})
 			if err != nil {
 				log.Printf("ws: marshal error: %v", err)

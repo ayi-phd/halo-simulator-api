@@ -24,6 +24,7 @@ type Dispatcher struct {
 	equipment   *store.EquipmentStore
 	assignments *store.AssignmentStore
 	bus         *events.Bus
+	sub         <-chan events.Event
 }
 
 func NewDispatcher(
@@ -39,15 +40,15 @@ func NewDispatcher(
 		equipment:   equipment,
 		assignments: assignments,
 		bus:         bus,
+		sub:         bus.Subscribe(),
 	}
 }
 
 // Run starts the Dispatcher's event loop. Call in its own goroutine.
 func (d *Dispatcher) Run(ctx context.Context) {
-	sub := d.bus.Subscribe()
 	for {
 		select {
-		case e := <-sub:
+		case e := <-d.sub:
 			d.handle(ctx, e)
 		case <-ctx.Done():
 			return

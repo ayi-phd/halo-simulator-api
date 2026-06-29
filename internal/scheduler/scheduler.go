@@ -36,6 +36,7 @@ type Scheduler struct {
 	equipment   *store.EquipmentStore
 	assignments *store.AssignmentStore
 	bus         *events.Bus
+	sub         <-chan events.Event
 }
 
 func NewScheduler(
@@ -51,15 +52,15 @@ func NewScheduler(
 		equipment:   equipment,
 		assignments: assignments,
 		bus:         bus,
+		sub:         bus.Subscribe(),
 	}
 }
 
 // Run starts the Scheduler's event loop. Call in its own goroutine.
 func (s *Scheduler) Run(ctx context.Context) {
-	sub := s.bus.Subscribe()
 	for {
 		select {
-		case e := <-sub:
+		case e := <-s.sub:
 			s.handle(e)
 		case <-ctx.Done():
 			return
