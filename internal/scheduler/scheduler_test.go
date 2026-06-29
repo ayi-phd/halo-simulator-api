@@ -100,3 +100,54 @@ func TestScheduler_NoAvailableCrew_SkipsTask(t *testing.T) {
 		t.Errorf("want 0 assignments, got %d", n)
 	}
 }
+
+func TestScheduler_RetryOnCrewAvailable(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	taskStore   := store.NewTaskStore()
+	crewStore   := store.NewCrewStore()
+	equipStore  := store.NewEquipmentStore()
+	assignStore := store.NewAssignmentStore()
+	bus := events.NewBus()
+	go bus.Run(ctx)
+
+	// Seed matching equipment but NO crew yet.
+	equipStore.Save(domain.GroundEquipment{Type: domain.EquipmentTypeFuelTruck, Status: domain.EquipmentStatusAvailable})
+
+	sub := bus.Subscribe()
+	go scheduler.NewScheduler(taskStore, crewStore, equipStore, assignStore, bus).Run(ctx)
+
+	// Publish TaskCreated — no crew, so it will be skipped.
+	task := taskStore.Save(domain.Task{FlightID: "f1", Type: domain.TaskTypeFuel, Status: domain.TaskStatusPending, CreatedAt: time.Now()})
+	bus.Publish(events.Event{Type: events.TaskCreated, Payload: task})
+
+	// Drain briefly — no assignment expected yet.
+	select {
+	case e := <-sub:
+		if e.Type == events.AssignmentCreated {
+			t.Fatal("expected no assignment before crew is available")
+		}
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	// Now a fueler becomes available — scheduler should retry and assign.
+	crew := crewStore.Save(domain.Crew{Name: "Alice", Role: domain.CrewRoleFueler, Status: domain.CrewStatusAvailable})
+	bus.Publish(events.Event{Type: events.CrewAvailable, Payload: crew})
+
+	timeout := time.After(2 * time.Second)
+	for {
+		select {
+		case e := <-sub:
+			if e.Type == events.AssignmentCreated {
+				a := e.Payload.(domain.Assignment)
+				if a.CrewID != crew.ID {
+					t.Errorf("want crew %s, got %s", crew.ID, a.CrewID)
+				}
+				return // retry succeeded
+			}
+		case <-timeout:
+			t.Fatal("timed out waiting for assignment after CrewAvailable")
+		}
+	}
+}

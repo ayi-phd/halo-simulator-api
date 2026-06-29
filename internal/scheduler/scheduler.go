@@ -68,15 +68,55 @@ func (s *Scheduler) Run(ctx context.Context) {
 }
 
 func (s *Scheduler) handle(e events.Event) {
-	if e.Type != events.TaskCreated {
-		return
+	switch e.Type {
+	case events.TaskCreated:
+		task, ok := e.Payload.(domain.Task)
+		if !ok {
+			log.Printf("scheduler: unexpected payload type for %s", e.Type)
+			return
+		}
+		s.schedule(task)
+
+	case events.CrewAvailable:
+		crew, ok := e.Payload.(domain.Crew)
+		if !ok {
+			return
+		}
+		s.retryPendingForCrew(crew)
+
+	case events.EquipmentAvailable:
+		equip, ok := e.Payload.(domain.GroundEquipment)
+		if !ok {
+			return
+		}
+		s.retryPendingForEquipment(equip)
 	}
-	task, ok := e.Payload.(domain.Task)
-	if !ok {
-		log.Printf("scheduler: unexpected payload type for %s", e.Type)
-		return
+}
+
+// retryPendingForCrew finds pending tasks that need the crew's role and
+// attempts to schedule them. The crew can only take one task, so we stop
+// after the first successful assignment.
+func (s *Scheduler) retryPendingForCrew(crew domain.Crew) {
+	role := taskCrewRole
+	for _, task := range s.tasks.Pending() {
+		if role[task.Type] == crew.Role {
+			log.Printf("scheduler: retrying task %s (%s) after crew %s became available", task.ID, task.Type, crew.Name)
+			s.schedule(task)
+			return
+		}
 	}
-	s.schedule(task)
+}
+
+// retryPendingForEquipment finds pending tasks that need the equipment type
+// and attempts to schedule them. One piece of equipment, one task.
+func (s *Scheduler) retryPendingForEquipment(equip domain.GroundEquipment) {
+	for _, task := range s.tasks.Pending() {
+		if taskEquipmentType[task.Type] == equip.Type {
+			log.Printf("scheduler: retrying task %s (%s) after equipment %s became available", task.ID, task.Type, equip.Type)
+			s.schedule(task)
+			return
+		}
+	}
 }
 
 func (s *Scheduler) schedule(task domain.Task) {
