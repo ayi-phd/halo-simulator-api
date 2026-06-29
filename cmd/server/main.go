@@ -13,11 +13,11 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"halo-simulator/internal/api"
 	"halo-simulator/internal/dispatcher"
+	"halo-simulator/internal/domain"
 	"halo-simulator/internal/events"
 	"halo-simulator/internal/metrics"
 	"halo-simulator/internal/planner"
 	"halo-simulator/internal/scheduler"
-	"halo-simulator/internal/simulator"
 	"halo-simulator/internal/store"
 	"halo-simulator/internal/ws"
 )
@@ -38,13 +38,21 @@ func main() {
 	// Event bus
 	bus := events.NewBus()
 
+	// Seed static airline reference data.
+	for _, a := range []domain.Airline{
+		{Name: "Delta", IATA: "DL"},
+		{Name: "United", IATA: "UA"},
+		{Name: "Southwest", IATA: "WN"},
+	} {
+		flights.SaveAirline(a)
+	}
+
 	// Components
 	hub       := ws.NewHub(bus)
 	collector := metrics.NewCollector(flights, tasks, crews, assignments)
 	plan      := planner.NewPlanner(tasks, bus)
 	sched     := scheduler.NewScheduler(tasks, crews, equipment, assignments, bus)
 	disp      := dispatcher.NewDispatcher(tasks, crews, equipment, assignments, bus)
-	sim       := simulator.NewSimulator(flights, crews, equipment, bus)
 
 	// Start background goroutines — all exit when ctx is cancelled.
 	go bus.Run(ctx)
@@ -52,7 +60,6 @@ func main() {
 	go plan.Run(ctx)
 	go sched.Run(ctx)
 	go disp.Run(ctx)
-	go sim.Run(ctx)
 
 	// HTTP server — runs in its own goroutine so main can wait on ctx.
 	r := chi.NewRouter()
@@ -72,7 +79,7 @@ func main() {
 	srv := &http.Server{Addr: ":8080", Handler: r}
 
 	go func() {
-		log.Println("HALO Simulator starting on :8080")
+		log.Println("HALO server starting on :8080 — run simulator-api to generate traffic")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}

@@ -60,6 +60,8 @@ func (h *Handler) Routes() http.Handler {
 	r.Post("/equipment", h.createEquipment)
 	r.Post("/events", h.publishEvent)
 
+	r.Get("/flights", h.listFlights)
+	r.Get("/equipment", h.listEquipment)
 	r.Get("/assignments", h.listAssignments)
 	r.Get("/dashboard", h.dashboard)
 	r.Get("/metrics", h.getMetrics)
