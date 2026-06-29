@@ -79,7 +79,7 @@ func main() {
 	srv := &http.Server{Addr: ":8080", Handler: r}
 
 	go func() {
-		log.Println("HALO server starting on :8080 — run simulator-api to generate traffic")
+		log.Println("HALO server starting on :8080 — run simulator-http to generate traffic")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}
