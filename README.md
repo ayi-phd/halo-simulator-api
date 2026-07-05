@@ -29,7 +29,7 @@ The emulator is composed of small, focused components that communicate exclusive
 
 Two binaries work together:
 
-- **`cmd/server`** — REST API + WebSocket hub + reactive pipeline (the emulator)
+- **`cmd/halo-server`** — REST API + WebSocket hub + reactive pipeline (the emulator)
 - **`cmd/simulator-http`** — external traffic generator; seeds crew/equipment and drives flight arrivals and operational events over HTTP
 
 ## Running Locally
@@ -42,7 +42,7 @@ git clone https://github.com/ayi-phd/halo-simulator-api
 cd halo-simulator-api
 
 # Terminal 1 — start the emulator
-go run ./cmd/server
+go run ./cmd/halo-server
 
 # Terminal 2 — start the simulator
 go run ./cmd/simulator-http
@@ -82,7 +82,7 @@ The dashboard connects over WebSocket and shows a color-coded event stream with 
 
 ```
 cmd/
-  server/           Emulator binary (API + reactive pipeline)
+  halo-server/      Emulator binary (API + reactive pipeline)
   simulator-http/   Simulator binary (external HTTP traffic generator)
 internal/
   domain/           Core types (Flight, Task, Crew, Equipment, Assignment)

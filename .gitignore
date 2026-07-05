@@ -1,5 +1,6 @@
 # Compiled binaries (root-level only)
 /server
+/halo-server
 /simulator-http
 
 # Go build artifacts
