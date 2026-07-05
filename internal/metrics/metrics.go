@@ -9,10 +9,12 @@ import (
 
 // Snapshot is a point-in-time read of operational KPIs.
 type Snapshot struct {
-	ActiveFlights      int     `json:"active_flights"`
+	TotalFlights       int     `json:"total_flights"`
+	TotalTasks         int     `json:"total_tasks"`
 	PendingTasks       int     `json:"pending_tasks"`
-	BusyCrews          int     `json:"busy_crews"`
 	CompletedTasks     int     `json:"completed_tasks"`
+	BusyCrew           int     `json:"busy_crew"`
+	BusyEquipment      int     `json:"busy_equipment"`
 	AvgDispatchSeconds float64 `json:"avg_dispatch_seconds"`
 }
 
@@ -22,6 +24,7 @@ type Collector struct {
 	flights     *store.FlightStore
 	tasks       *store.TaskStore
 	crews       *store.CrewStore
+	equipment   *store.EquipmentStore
 	assignments *store.AssignmentStore
 }
 
@@ -29,20 +32,23 @@ func NewCollector(
 	flights *store.FlightStore,
 	tasks *store.TaskStore,
 	crews *store.CrewStore,
+	equipment *store.EquipmentStore,
 	assignments *store.AssignmentStore,
 ) *Collector {
 	return &Collector{
 		flights:     flights,
 		tasks:       tasks,
 		crews:       crews,
+		equipment:   equipment,
 		assignments: assignments,
 	}
 }
 
 // Snapshot returns current KPIs computed from live store state.
 func (c *Collector) Snapshot() Snapshot {
-	var pending, completed int
+	var pending, completed, total int
 	for _, t := range c.tasks.All() {
+		total++
 		switch t.Status {
 		case domain.TaskStatusPending:
 			pending++
@@ -51,25 +57,27 @@ func (c *Collector) Snapshot() Snapshot {
 		}
 	}
 
-	var busy int
+	var busyCrew int
 	for _, crew := range c.crews.All() {
 		if crew.Status == domain.CrewStatusBusy {
-			busy++
+			busyCrew++
 		}
 	}
 
-	var active int
-	for _, f := range c.flights.AllFlights() {
-		if f.Status == domain.FlightStatusArrived {
-			active++
+	var busyEquip int
+	for _, e := range c.equipment.All() {
+		if e.Status == domain.EquipmentStatusBusy {
+			busyEquip++
 		}
 	}
 
 	return Snapshot{
-		ActiveFlights:      active,
+		TotalFlights:       len(c.flights.AllFlights()),
+		TotalTasks:         total,
 		PendingTasks:       pending,
-		BusyCrews:          busy,
 		CompletedTasks:     completed,
+		BusyCrew:           busyCrew,
+		BusyEquipment:      busyEquip,
 		AvgDispatchSeconds: c.avgDispatchSeconds(),
 	}
 }

@@ -11,20 +11,22 @@ import (
 
 func TestCollector_Snapshot(t *testing.T) {
 	tests := []struct {
-		name          string
-		setup         func(f *store.FlightStore, ts *store.TaskStore, cs *store.CrewStore, as *store.AssignmentStore)
-		wantActive    int
-		wantPending   int
-		wantCompleted int
-		wantBusy      int
+		name              string
+		setup             func(f *store.FlightStore, ts *store.TaskStore, cs *store.CrewStore, es *store.EquipmentStore, as *store.AssignmentStore)
+		wantFlights       int
+		wantTotalTasks    int
+		wantPending       int
+		wantCompleted     int
+		wantBusyCrew      int
+		wantBusyEquipment int
 	}{
 		{
 			name:  "empty stores return all zeros",
-			setup: func(f *store.FlightStore, ts *store.TaskStore, cs *store.CrewStore, as *store.AssignmentStore) {},
+			setup: func(f *store.FlightStore, ts *store.TaskStore, cs *store.CrewStore, es *store.EquipmentStore, as *store.AssignmentStore) {},
 		},
 		{
 			name: "counts reflect store state correctly",
-			setup: func(f *store.FlightStore, ts *store.TaskStore, cs *store.CrewStore, as *store.AssignmentStore) {
+			setup: func(f *store.FlightStore, ts *store.TaskStore, cs *store.CrewStore, es *store.EquipmentStore, as *store.AssignmentStore) {
 				f.SaveFlight(domain.Flight{Status: domain.FlightStatusArrived})
 				f.SaveFlight(domain.Flight{Status: domain.FlightStatusDeparted})
 				ts.Save(domain.Task{Status: domain.TaskStatusPending})
@@ -34,11 +36,15 @@ func TestCollector_Snapshot(t *testing.T) {
 				cs.Save(domain.Crew{Status: domain.CrewStatusBusy})
 				cs.Save(domain.Crew{Status: domain.CrewStatusBusy})
 				cs.Save(domain.Crew{Status: domain.CrewStatusAvailable})
+				es.Save(domain.GroundEquipment{Status: domain.EquipmentStatusBusy})
+				es.Save(domain.GroundEquipment{Status: domain.EquipmentStatusAvailable})
 			},
-			wantActive:    1,
-			wantPending:   1,
-			wantCompleted: 2,
-			wantBusy:      2,
+			wantFlights:       2,
+			wantTotalTasks:    4,
+			wantPending:       1,
+			wantCompleted:     2,
+			wantBusyCrew:      2,
+			wantBusyEquipment: 1,
 		},
 	}
 
@@ -47,13 +53,17 @@ func TestCollector_Snapshot(t *testing.T) {
 			flights     := store.NewFlightStore()
 			tasks       := store.NewTaskStore()
 			crews       := store.NewCrewStore()
+			equipment   := store.NewEquipmentStore()
 			assignments := store.NewAssignmentStore()
-			tt.setup(flights, tasks, crews, assignments)
+			tt.setup(flights, tasks, crews, equipment, assignments)
 
-			snap := metrics.NewCollector(flights, tasks, crews, assignments).Snapshot()
+			snap := metrics.NewCollector(flights, tasks, crews, equipment, assignments).Snapshot()
 
-			if snap.ActiveFlights != tt.wantActive {
-				t.Errorf("ActiveFlights: want %d, got %d", tt.wantActive, snap.ActiveFlights)
+			if snap.TotalFlights != tt.wantFlights {
+				t.Errorf("TotalFlights: want %d, got %d", tt.wantFlights, snap.TotalFlights)
+			}
+			if snap.TotalTasks != tt.wantTotalTasks {
+				t.Errorf("TotalTasks: want %d, got %d", tt.wantTotalTasks, snap.TotalTasks)
 			}
 			if snap.PendingTasks != tt.wantPending {
 				t.Errorf("PendingTasks: want %d, got %d", tt.wantPending, snap.PendingTasks)
@@ -61,8 +71,11 @@ func TestCollector_Snapshot(t *testing.T) {
 			if snap.CompletedTasks != tt.wantCompleted {
 				t.Errorf("CompletedTasks: want %d, got %d", tt.wantCompleted, snap.CompletedTasks)
 			}
-			if snap.BusyCrews != tt.wantBusy {
-				t.Errorf("BusyCrews: want %d, got %d", tt.wantBusy, snap.BusyCrews)
+			if snap.BusyCrew != tt.wantBusyCrew {
+				t.Errorf("BusyCrew: want %d, got %d", tt.wantBusyCrew, snap.BusyCrew)
+			}
+			if snap.BusyEquipment != tt.wantBusyEquipment {
+				t.Errorf("BusyEquipment: want %d, got %d", tt.wantBusyEquipment, snap.BusyEquipment)
 			}
 		})
 	}
@@ -72,6 +85,7 @@ func TestCollector_AvgDispatchSeconds(t *testing.T) {
 	flights     := store.NewFlightStore()
 	tasks       := store.NewTaskStore()
 	crews       := store.NewCrewStore()
+	equipment   := store.NewEquipmentStore()
 	assignments := store.NewAssignmentStore()
 
 	base := time.Now()
@@ -87,7 +101,7 @@ func TestCollector_AvgDispatchSeconds(t *testing.T) {
 		CreatedAt: base.Add(4 * time.Second),
 	})
 
-	snap := metrics.NewCollector(flights, tasks, crews, assignments).Snapshot()
+	snap := metrics.NewCollector(flights, tasks, crews, equipment, assignments).Snapshot()
 	if snap.AvgDispatchSeconds != 4.0 {
 		t.Errorf("AvgDispatchSeconds: want 4.0, got %f", snap.AvgDispatchSeconds)
 	}

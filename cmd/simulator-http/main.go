@@ -51,10 +51,12 @@ func main() {
 
 	flightTicker := time.NewTicker(10 * time.Second)
 	eventTicker  := time.NewTicker(25 * time.Second)
+	burstTicker  := time.NewTicker(45 * time.Second)
 	defer flightTicker.Stop()
 	defer eventTicker.Stop()
+	defer burstTicker.Stop()
 
-	log.Printf("simulator-http: running — flights every 10s, events every 25s")
+	log.Printf("simulator-http: running — flights every 10s, events every 25s, burst every 45s")
 
 	for {
 		select {
@@ -64,6 +66,9 @@ func main() {
 			}
 		case <-eventTicker.C:
 			randomOperationalEvent(ctx, client, equipmentIDs, flightIDs)
+		case <-burstTicker.C:
+			ids := arriveFlightBurst(client, 3)
+			flightIDs = append(flightIDs, ids...)
 		case <-ctx.Done():
 			log.Println("simulator-http: stopped")
 			return
@@ -122,6 +127,19 @@ func arriveRandomFlight(client *simclient.Client) string {
 	}
 	log.Printf("simulator-http: flight %s arrived at gate %s", number, gate)
 	return id
+}
+
+// arriveFlightBurst arrives n flights simultaneously, saturating crew and
+// equipment so that some tasks are forced into Pending state.
+func arriveFlightBurst(client *simclient.Client, n int) []string {
+	log.Printf("simulator-http: burst — arriving %d flights simultaneously", n)
+	var ids []string
+	for range n {
+		if id := arriveRandomFlight(client); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 func randomOperationalEvent(ctx context.Context, client *simclient.Client, equipmentIDs, flightIDs []string) {
