@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HALO Simulator</title>
+  <title>HALO Emulator</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -13,85 +13,124 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
+    /* ── Header ── */
     header {
-      padding: 12px 20px;
+      padding: 10px 20px;
       background: #161b22;
-      border-bottom: 1px solid #30363d;
+      border-bottom: 1px solid #21262d;
       display: flex;
       align-items: center;
       gap: 20px;
-    }
-    h1 { font-size: 15px; color: #58a6ff; letter-spacing: 2px; text-transform: uppercase; }
-
-    .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8b949e; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #f85149; flex-shrink: 0; }
-    .dot.connected { background: #3fb950; }
-
-    .metrics {
-      display: flex;
-      gap: 32px;
-      padding: 10px 20px;
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
-      font-size: 12px;
-      flex-wrap: wrap;
-    }
-    .metric { display: flex; flex-direction: column; gap: 2px; }
-    .metric-value { font-size: 22px; color: #58a6ff; font-weight: bold; }
-    .metric-label { color: #8b949e; text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
-
-    .stream {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .event {
-      display: flex;
-      gap: 12px;
-      align-items: baseline;
-      padding: 3px 8px;
-      border-radius: 4px;
-      border-left: 3px solid transparent;
-      font-size: 12px;
-    }
-    .event:hover { background: #161b22; }
-
-    .time  { color: #8b949e; font-size: 11px; min-width: 86px; flex-shrink: 0; }
-    .badge {
-      font-size: 10px;
-      padding: 1px 7px;
-      border-radius: 3px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      min-width: 148px;
-      text-align: center;
       flex-shrink: 0;
     }
-    .payload { color: #8b949e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    h1 { font-size: 14px; color: #58a6ff; letter-spacing: 2px; text-transform: uppercase; }
+    .status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8b949e; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #f85149; flex-shrink: 0; }
+    .dot.connected { background: #3fb950; }
 
-    .type-flight     { border-color: #58a6ff; }
-    .type-flight     .badge { background: #1f3a5f; color: #58a6ff; }
-    .type-task       { border-color: #e3b341; }
-    .type-task       .badge { background: #3d2d00; color: #e3b341; }
-    .type-crew       { border-color: #3fb950; }
-    .type-crew       .badge { background: #1a3a1e; color: #3fb950; }
-    .type-equipment  { border-color: #bc8cff; }
-    .type-equipment  .badge { background: #2d1f4e; color: #bc8cff; }
-    .type-assignment { border-color: #39c5cf; }
-    .type-assignment .badge { background: #1a3535; color: #39c5cf; }
+    /* ── Metrics bar ── */
+    .metrics {
+      display: flex;
+      gap: 28px;
+      padding: 8px 20px;
+      background: #161b22;
+      border-bottom: 1px solid #21262d;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .metric { display: flex; flex-direction: column; gap: 1px; }
+    .metric-value { font-size: 20px; color: #58a6ff; font-weight: bold; line-height: 1; }
+    .metric-label { font-size: 9px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
 
-    .empty { color: #8b949e; font-size: 13px; padding: 40px; text-align: center; }
+    /* ── Log table wrapper ── */
+    .log-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px 16px;
+    }
+
+    /* ── Table: no borders, alignment only ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    /* Column widths */
+    .col-time       { width: 78px; }
+    .col-flights    { width: 19%; }
+    .col-tasks      { width: 19%; }
+    .col-assignments{ width: 19%; }
+    .col-crew       { width: 19%; }
+    .col-equipment  { width: 19%; }
+
+    /* Sticky header */
+    thead tr {
+      background: #0d1117;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    thead th {
+      padding: 10px 8px 6px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: normal;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .th-time       { color: #3d444d; }
+    .th-flights    { color: #58a6ff; }
+    .th-tasks      { color: #e3b341; }
+    .th-assignments{ color: #39c5cf; }
+    .th-crew       { color: #3fb950; }
+    .th-equipment  { color: #bc8cff; }
+
+    .th-sub {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 0.5px;
+      text-transform: none;
+      color: #8b949e;
+      margin-top: 1px;
+      min-height: 12px;
+    }
+
+    /* Body rows */
+    tbody tr { transition: background 0.1s; }
+    tbody tr:hover { background: #161b22; }
+
+    td {
+      padding: 2px 8px;
+      font-size: 12px;
+      vertical-align: top;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .td-time { color: #3d444d; font-size: 10px; padding-top: 3px; }
+
+    /* Per-column message colors */
+    .td-flights    { color: #58a6ff; }
+    .td-tasks      { color: #e3b341; }
+    .td-assignments{ color: #39c5cf; }
+    .td-crew       { color: #3fb950; }
+    .td-equipment  { color: #bc8cff; }
+
+    .empty-row td {
+      padding-top: 24px;
+      color: #3d444d;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
+
   <header>
-    <h1>&#9992; HALO Simulator</h1>
+    <h1>&#9992; HALO Emulator</h1>
     <div class="status">
       <div class="dot" id="dot"></div>
       <span id="status-text">Connecting…</span>
@@ -105,20 +144,40 @@
     <div class="metric"><span class="metric-value" id="m-completed">—</span><span class="metric-label">Completed</span></div>
     <div class="metric"><span class="metric-value" id="m-crew-busy">—</span><span class="metric-label">Crew Busy</span></div>
     <div class="metric"><span class="metric-value" id="m-equip-busy">—</span><span class="metric-label">Equip Busy</span></div>
-    <div class="metric"><span class="metric-value" id="m-dispatch">—</span><span class="metric-label">Avg Dispatch</span></div>
   </div>
 
-  <div class="stream" id="stream">
-    <div class="empty" id="empty">Waiting for events…</div>
+  <div class="log-wrap" id="log-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-time th-time"></th>
+          <th class="col-flights th-flights">Flights</th>
+          <th class="col-tasks th-tasks">
+            Tasks
+            <span class="th-sub" id="avg-dispatch"></span>
+          </th>
+          <th class="col-assignments th-assignments">Assignments</th>
+          <th class="col-crew th-crew">Crew</th>
+          <th class="col-equipment th-equipment">Equipment</th>
+        </tr>
+      </thead>
+      <tbody id="log-body">
+        <tr class="empty-row">
+          <td></td>
+          <td colspan="5">Waiting for events…</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <script>
-    const MAX_EVENTS = 200;
-    const host    = window.location.host || 'localhost:8080';
-    const apiBase = `http://${host}`;
-    const stream  = document.getElementById('stream');
+    const MAX_ROWS = 200;
+    const host     = window.location.host || 'localhost:8080';
+    const apiBase  = `http://${host}`;
+    const logBody  = document.getElementById('log-body');
+    const logWrap  = document.getElementById('log-wrap');
 
-    // --- WebSocket ---
+    // ── WebSocket ──────────────────────────────────────────────
     function connect() {
       const ws = new WebSocket(`ws://${host}/ws`);
 
@@ -126,68 +185,87 @@
         document.getElementById('dot').className = 'dot connected';
         document.getElementById('status-text').textContent = 'Connected';
       };
-
       ws.onclose = () => {
         document.getElementById('dot').className = 'dot';
         document.getElementById('status-text').textContent = 'Disconnected — retrying…';
         setTimeout(connect, 2000);
       };
-
       ws.onerror = () => ws.close();
-
-      ws.onmessage = (e) => appendEvent(JSON.parse(e.data));
+      ws.onmessage = e => appendRow(JSON.parse(e.data));
     }
 
-    // --- Event stream ---
-    function appendEvent(event) {
-      document.getElementById('empty')?.remove();
+    // ── Log table ──────────────────────────────────────────────
+    const COLS = ['flights', 'tasks', 'assignments', 'crew', 'equipment'];
 
-      const prefix = event.type.split('.')[0];
-      const row    = document.createElement('div');
-      row.className = `event type-${prefix}`;
+    function appendRow(event) {
+      // Remove placeholder
+      const placeholder = logBody.querySelector('.empty-row');
+      if (placeholder) placeholder.remove();
 
-      const t = new Date();
-      const ts = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}.${String(t.getMilliseconds()).padStart(3,'0')}`;
+      const { col, msg } = categorise(event);
+      if (!col) return;
 
-      row.innerHTML = `
-        <span class="time">${ts}</span>
-        <span class="badge">${event.type}</span>
-        <span class="payload">${summarise(event)}</span>
-      `;
-      stream.appendChild(row);
+      const now = new Date();
+      const ts  = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-      const rows = stream.querySelectorAll('.event');
-      if (rows.length > MAX_EVENTS) rows[0].remove();
+      const tr = document.createElement('tr');
 
-      const nearBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight < 80;
-      if (nearBottom) stream.scrollTop = stream.scrollHeight;
+      // Time cell
+      const tdTime = document.createElement('td');
+      tdTime.className = 'td-time';
+      tdTime.textContent = ts;
+      tr.appendChild(tdTime);
+
+      // Five column cells
+      for (const c of COLS) {
+        const td = document.createElement('td');
+        if (c === col) {
+          td.className = `td-${c}`;
+          td.textContent = msg;
+          td.title = msg; // full text on hover if truncated
+        }
+        tr.appendChild(td);
+      }
+
+      logBody.appendChild(tr);
+
+      // Cap rows
+      while (logBody.rows.length > MAX_ROWS) logBody.deleteRow(0);
+
+      // Auto-scroll if near bottom
+      const nearBottom = logWrap.scrollHeight - logWrap.scrollTop - logWrap.clientHeight < 60;
+      if (nearBottom) logWrap.scrollTop = logWrap.scrollHeight;
     }
 
-    function summarise(event) {
-      const p = event.payload;
-      if (!p) return '';
+    function categorise(event) {
+      const p = event.payload || {};
       switch (event.type) {
         case 'flight.arrived':
+          return { col: 'flights', msg: `${p.flight_number || '?'} arrived · ${p.gate || '?'}` };
         case 'flight.delayed':
-          return `${p.flight_number || ''} — gate ${p.gate || ''}`;
+          return { col: 'flights', msg: `${p.flight_number || '?'} delayed` };
         case 'task.created':
+          return { col: 'tasks', msg: `${p.type || '?'} created` };
         case 'task.completed':
-          return `type=${p.type || ''}`;
-        case 'crew.available':
-        case 'crew.unavailable':
-          return `${p.name || ''} (${p.role || ''})`;
-        case 'equipment.available':
-        case 'equipment.broken':
-          return `${p.type || ''} @ ${p.location || ''}`;
+          return { col: 'tasks', msg: `${p.type || '?'} completed` };
         case 'assignment.created':
+          return { col: 'assignments', msg: `dispatched` };
         case 'assignment.completed':
-          return `crew=${(p.crew_id||'').slice(0,8)}…  task=${(p.task_id||'').slice(0,8)}…`;
+          return { col: 'assignments', msg: `completed` };
+        case 'crew.available':
+          return { col: 'crew', msg: `${p.name || '?'} available` };
+        case 'crew.unavailable':
+          return { col: 'crew', msg: `${p.name || '?'} off duty` };
+        case 'equipment.available':
+          return { col: 'equipment', msg: `${p.type || '?'} ready` };
+        case 'equipment.broken':
+          return { col: 'equipment', msg: `${p.type || '?'} broken` };
         default:
-          return JSON.stringify(p).slice(0, 80);
+          return { col: null, msg: '' };
       }
     }
 
-    // --- Metrics polling ---
+    // ── Metrics polling ────────────────────────────────────────
     async function refreshMetrics() {
       try {
         const res = await fetch(`${apiBase}/metrics`);
@@ -199,10 +277,14 @@
         document.getElementById('m-completed').textContent  = m.completed_tasks  ?? '—';
         document.getElementById('m-crew-busy').textContent  = m.busy_crew        ?? '—';
         document.getElementById('m-equip-busy').textContent = m.busy_equipment   ?? '—';
+
         const d = m.avg_dispatch_seconds;
-        document.getElementById('m-dispatch').textContent   = d != null ? `${d.toFixed(1)}s` : '—';
-      } catch (_) { /* server not ready yet */ }
+        document.getElementById('avg-dispatch').textContent =
+          d != null ? `avg dispatch ${(d * 1000).toFixed(1)}ms` : '';
+      } catch (_) {}
     }
+
+    function pad(n) { return String(n).padStart(2, '0'); }
 
     connect();
     refreshMetrics();
