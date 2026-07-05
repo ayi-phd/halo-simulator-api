@@ -49,7 +49,7 @@ func main() {
 
 	// Components
 	hub       := ws.NewHub(bus)
-	collector := metrics.NewCollector(flights, tasks, crews, assignments)
+	collector := metrics.NewCollector(flights, tasks, crews, equipment, assignments)
 	plan      := planner.NewPlanner(tasks, bus)
 	sched     := scheduler.NewScheduler(tasks, crews, equipment, assignments, bus)
 	disp      := dispatcher.NewDispatcher(tasks, crews, equipment, assignments, bus)
